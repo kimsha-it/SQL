@@ -23,6 +23,3 @@ SHOW FULL TABLES WHERE Table_type = 'VIEW';
 
 DROP VIEW large_country;
 
-
-
-
