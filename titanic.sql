@@ -14,7 +14,7 @@ SELECT COUNT(*) AS row_count FROM titanic;
 -- 문제 1-3: cabin 결측치(NULL) 개수
 -- cabin 컬럼의 결측치(빈 문자열) 개수를 조회하세요.
 -- 힌트: CASE 문 + SUM을 활용한 조건부 집계
-SELECT SUM(CASE Cabin WHEN NULL THEN 1 ELSE 0 END) FROM titanic;      
+SELECT SUM(CASE WHEN Cabin = '' THEN 1 ELSE 0 END) FROM titanic;      
 
 -- 문제 1-4: 요금(fare) 기초 통계
 -- 요금(fare)의 최솟값, 최댓값, 평균값을 조회하세요.
@@ -58,7 +58,7 @@ ORDER BY Fare DESC;
 -- 나이가 어린 순서로 정렬
 SELECT Name, Age, Fare
 From titanic
-WHERE Pclass = 1
+WHERE Pclass = 1 AND Sex = 'female'
 ORDER BY Age ASC;
 
 
@@ -68,8 +68,7 @@ ORDER BY Age ASC;
 -- 다음 두 가지 정보를 각각 조회하세요:
 -- 전체 생존율 (소수점 둘째 자리까지 백분율로 표시)
 SELECT 
-    ROUND(SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS '전체 생존율',
-    SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / SUM(CASE WHEN Survived = 0 THEN 1 ELSE 0 END) AS '생존/사망자 수'
+	ROUND(AVG(survived) * 100, 2)
 FROM titanic;
 
 -- 생존 여부별 승객 수
@@ -88,11 +87,11 @@ GROUP BY Survived;
 SELECT 
 	Sex,
 	COUNT(*),
-    SUM(CASE WHEN Survived =1 THEN 1 ELSE 0 END) AS '생존자 수',
-	ROUND(SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS '전체 생존율'
+    SUM(survived),
+    ROUND(AVG(survived) * 100, 2) AS '생존율'
 FROM titanic
 GROUP BY Sex
-ORDER BY '전체 생존율' DESC;
+ORDER BY '생존율' DESC;
 
 
 -- 문제 3-3: 티켓 등급별 생존율 및 평균 요금
@@ -100,12 +99,14 @@ ORDER BY '전체 생존율' DESC;
 -- 등급별 생존율
 SELECT 
 	Pclass,
-	ROUND(SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS '전체 생존율'
+    COUNT(*),
+	ROUND(AVG(survived) * 100, 2)
 FROM titanic
 GROUP BY Pclass;
 
 -- 등급별 평균 요금, 최소 요금, 최대 요금
 SELECT
+	Pclass,
 	AVG(Fare),
     MIN(Fare),
     MAX(Fare)
@@ -131,9 +132,11 @@ ORDER BY Embarked, Pclass;
 -- 생존율 (백분율)
 -- 등급, 성별 순서로 정렬
 SELECT 
+	Pclass,
+    Sex,
 	COUNT(*),
-    SUM(CASE WHEN Survived =1 THEN 1 ELSE 0 END) AS '생존자 수',
-	SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*) * 100 AS '전체 생존율'
+    SUM(survived),
+	ROUND(AVG(survived) * 100, 2)
 FROM titanic
 GROUP BY Pclass, Sex
 ORDER BY Pclass, Sex;
@@ -147,24 +150,16 @@ SELECT
 	CASE 
         WHEN (sibsp + parch) = 0 THEN '혼자'
         ELSE '가족동반'
-    END,
-    ROUND(
-        (SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100,
-        2
-    )
+    END AS family_status,
+    COUNT(*),
+    ROUND(AVG(survived) * 100, 2)
 FROM titanic
-GROUP BY 
-	CASE 
-        WHEN (sibsp + parch) = 0 THEN '혼자'
-        ELSE '가족동반'
-    END;
+GROUP BY family_status;
 
 -- 가족이 1명이라도 있는 승객의 평균 생존율
 SELECT 
-	ROUND(
-        (SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100,
-        2
-    )
+	COUNT(*),
+	ROUND(AVG(survived) * 100, 2)
 FROM titanic
 WHERE sibsp + parch != 0;
 ;
@@ -173,15 +168,12 @@ WHERE sibsp + parch != 0;
 -- 가족 규모(본인 포함 = 1 + sibsp + parch)별로 승객 수와 생존율을 조회하세요.
 -- 가족 규모 순서로 정렬
 SELECT 
-	COUNT(*) AS '가족규모',
-	ROUND(
-        (SUM(CASE WHEN Survived = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100,
-        2
-    )
+	(1 + sibsp + parch) AS family_size,
+	COUNT(*),
+	ROUND(AVG(survived) * 100, 2)
 FROM titanic
-WHERE sibsp + parch != 0
-GROUP BY 1 + sibsp + parch
-ORDER BY COUNT(*) DESC;
+GROUP BY family_size
+ORDER BY family_size;
 
 
 
@@ -193,7 +185,17 @@ ORDER BY COUNT(*) DESC;
 -- 18세 미만 → 'Child'
 -- 18-60세 → 'Adult'
 -- 60세 초과 → 'Senior'
--- -- 여기에 SQL 쿼리를 작성하세요
+SELECT 
+	CASE
+		WHEN Age < 18 THEN 'Child'
+        WHEN Age <= 60 THEN 'Adult'
+        ELSE 'Senior'
+	END AS age_group,
+    COUNT(*),
+	ROUND(AVG(survived) * 100, 2)
+FROM titanic
+GROUP BY age_group;
+
 
 
 -- 문제 4-2: 요금 구간(Band)별 생존율
@@ -203,13 +205,36 @@ ORDER BY COUNT(*) DESC;
 -- 30-100달러 → '중고가(30-99)'
 -- 100달러 이상 → '고가(100+)'
 -- 요금 구간 순서로 정렬
--- -- 여기에 SQL 쿼리를 작성하세요
+SELECT 
+	CASE
+		WHEN fare < 10 THEN '저가'
+        WHEN fare < 30 THEN '중저가'
+		WHEN fare < 100 THEN '중고가'
+        ELSE '고가'
+	END AS fare_band,
+    COUNT(*),
+	ROUND(AVG(survived) * 100, 2)
+FROM titanic
+GROUP BY fare_band
+ORDER BY 
+	CASE fare_band 
+		WHEN '저가' THEN 1
+        WHEN '중저가' THEN 2
+        WHEN '중고가' THEN 3
+        ELSE '고가'
+	END;
 
 
 -- 문제 4-3: 평균 요금이 50달러가 넘는 등급 (HAVING)
 -- 등급별로 평균 요금을 계산하되, 평균 요금이 50달러를 초과하는 등급만 조회하세요.
 -- 힌트: HAVING 절 사용
--- -- 여기에 SQL 쿼리를 작성하세요
+SELECT 
+	Pclass,
+    COUNT(*),
+    AVG(fare)
+FROM titanic
+GROUP BY pclass
+HAVING AVG(fare) > 50;
 
 
 -- 문제 4-4: 전체 평균 요금보다 많이 낸 승객 (서브쿼리)
@@ -218,7 +243,12 @@ ORDER BY COUNT(*) DESC;
 -- 요금이 높은 순서로 정렬
 -- 상위 20명만 조회
 -- 힌트: 서브쿼리 사용
--- -- 여기에 SQL 쿼리를 작성하세요
+SELECT 
+	Name, Pclass, fare
+FROM titanic
+WHERE fare > (SELECT AVG(fare) FROM titanic)
+ORDER BY fare DESC
+LIMIT 20;
 
 
 -- 문제 4-5: 3등석 평균 나이보다 많은 1등석 승객 (서브쿼리)
@@ -226,4 +256,9 @@ ORDER BY COUNT(*) DESC;
 -- 이름(name), 나이(age), 등급(pclass), 3등석 평균 나이 표시
 -- 나이가 많은 순서로 정렬
 -- 상위 20명만 조회
--- -- 여기에 SQL 쿼리를 작성하세요
+SELECT 
+	Name, Age, Pclass, (SELECT AVG(age) FROM titanic WHERE Pclass = 3)
+FROM titanic
+WHERE Pclass =1 AND age > (SELECT AVG(age) FROM titanic WHERE Pclass = 3)
+ORDER BY age DESC
+LIMIT 20;
