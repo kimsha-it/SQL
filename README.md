@@ -43,6 +43,6 @@ SQL 기초부터 실전까지 단계별로 학습한 내용을 정리한 저장�
 ## 📚 관련 프로젝트
 
 - 🧾 **Camfit 프로젝트 Repository:** [👉https://github.com/kimsha-it/Camfit_DB_ToyProject.git]  
-  [camfit.co.kr] 웹사이트의 핵심 데이터베이스 스키마와 SQL 로직을 구현하는 프로젝트입니다.
+  [http://camfit.co.kr/] 웹사이트의 핵심 데이터베이스 스키마와 SQL 로직을 구현하는 프로젝트입니다.
 
 ---
